@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Use a clip layer to remove rendered features from the map</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        #filters {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            z-index: 1;
+        }
+
+        .toggle-container-small {
+            margin: 6px 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .toggle-label-small {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+
+        .toggle-label-small:hover {
+            background-color: #f8f8f8;
+        }
+
+        .toggle-name-small {
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .toggle-switch-small {
+            position: relative;
+            width: 32px;
+            height: 18px;
+            margin-right: 8px;
+        }
+
+        .toggle-input-small {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+
+        .toggle-slider-small {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.2s;
+            border-radius: 18px;
+        }
+
+        .toggle-slider-small:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.2s;
+            border-radius: 50%;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-input-small:checked+.toggle-slider-small {
+            background-color: #4CAF50;
+        }
+
+        .toggle-input-small:checked+.toggle-slider-small:before {
+            transform: translateX(14px);
+        }
+
+        .toggle-input-small:focus+.toggle-slider-small {
+            box-shadow: 0 0 1px #4CAF50;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div id="filters"></div>
+    <script>
+
+        const filters = document.getElementById('filters');
+
+        const appData = {
+            pins: [],
+            availableMonths: [],
+            monthStates: {}
+        }
+
+        const monthNameColor = {
+            "jan": "#1f77b4",
+            "feb": "#ff7f0e",
+            "mar": "#2ca02c",
+            "apr": "#d62728",
+            "may": "#9467bd",
+            "jun": "#8c564b",
+            "june": "#8c564b",
+            "jul": "#e377c2",
+            "aug": "#7f7f7f",
+            "sep": "#bcbd22",
+            "oct": "#17becf",
+            "nov": "#aec7e8",
+            "dec": "#ffbb78"
+        };
+
+        mapboxgl.accessToken = 'pk.eyJ1IjoicGF0cnlrLXdhc2lrIiwiYSI6ImNsenYybWswODAycXQyaXMybjE5djhvM2kifQ.79z21hharyuCVPDefwAimA';
+        const map = (window.map = new mapboxgl.Map({
+            container: 'map',
+            center: [-6.29059, 53.3695],
+            zoom: 11.81,
+            style: 'mapbox://styles/patryk-wasik/cmd2x9ey300c301s9f48y1tzd',
+        }));
+
+        // Function to filter pins based on month states
+        function updateMapData() {
+            const filteredPins = appData.pins.filter(pin =>
+                appData.monthStates[pin.properties.month] === true
+            );
+
+            const geojson = {
+                "type": "FeatureCollection",
+                "features": filteredPins
+            };
+
+            map.getSource('pins').setData(geojson);
+        }
+
+        map.on('style.load', () => {
+
+            map.addSource('pins', {
+                "type": "geojson",
+                "data": {
+                    "type": "FeatureCollection",
+                    "features": []
+                }
+            });
+
+            map.addLayer({
+                "id": "pins",
+                "type": "circle",
+                "source": "pins",
+                "paint": {
+                    "circle-radius": 6,
+                    "circle-color": ['get', 'color'],
+                    "circle-stroke-width": 1,
+                    "circle-stroke-color": "#FFFFFF"
+                }
+            });
+
+            map.on('click', 'pins', (e) => {
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const description = e.features[0].properties.description;
+
+                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                }
+
+                new mapboxgl.Popup({ closeOnClick: true, offset: 5 })
+                    .setLngLat(coordinates)
+                    .setHTML('<h3>' + description + '</h3>')
+                    .addTo(map);
+            });
+
+            map.on('mouseenter', 'pins', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', 'pins', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            d3.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vTCug3Ckya-3WVZ-PvVx9joPo_CGOdIBg2UZBx7FhCrgZhi2YFOtbbc3xtP9vS5esuf9S_iJVvJxOgD/pub?output=csv")
+                .then(function (data) {
+                    console.log(data);
+                    data.map(function (d) {
+
+                        const [lat, lng] = d.Coordinates.split(',').map(Number);
+                        if (isNaN(lat) || isNaN(lng)) {
+                            console.warn(`Invalid coordinates for ${d.Name}: ${d.Coordinates}`);
+                            return;
+                        }
+
+                        const month = d.Month.toLowerCase();
+
+                        const pin = {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Point",
+                                "coordinates": [lng, lat]
+                            },
+                            "properties": {
+                                "title": d.Name,
+                                "description": d.Text,
+                                "icon": "monument",
+                                "month": month,
+                                "color": monthNameColor[month] || "#000000"
+                            }
+                        }
+                        appData.pins.push(pin);
+                        appData.availableMonths.push(month);
+                    });
+
+                    appData.availableMonths = Array.from(new Set(appData.availableMonths));
+                    appData.availableMonths.sort((a, b) => {
+                        const monthOrder = ["jan", "feb", "mar", "apr", "may", "jun", "june", "jul", "aug", "sep", "oct", "nov", "dec"];
+                        return monthOrder.indexOf(a) - monthOrder.indexOf(b);
+                    });
+
+                    // Initialize month states - all set to true by default
+                    appData.availableMonths.forEach(month => {
+                        appData.monthStates[month] = true;
+                    });
+
+                    // Create toggles for each month
+                    appData.availableMonths.forEach(month => {
+                        const toggle = createToggleDiv(month.toUpperCase(), handleToggle, true);
+                        filters.appendChild(toggle);
+                    });
+
+                    // Initial map update
+                    updateMapData();
+
+                })
+                .catch(function (error) {
+                    console.error('Error loading or parsing data:', error);
+                })
+
+        });
+
+        function createToggleDiv(name, onToggle, initialState = false) {
+            const container = document.createElement('div');
+            container.className = 'toggle-container-small';
+
+            const label = document.createElement('label');
+            label.className = 'toggle-label-small';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'toggle-name-small';
+            nameSpan.textContent = name;
+
+            const switchDiv = document.createElement('div');
+            switchDiv.className = 'toggle-switch-small';
+
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = initialState;
+            input.className = 'toggle-input-small';
+
+            const slider = document.createElement('span');
+            slider.className = 'toggle-slider-small';
+
+            input.addEventListener('change', function () {
+                if (onToggle) {
+                    onToggle(this.checked, name);
+                }
+            });
+
+            switchDiv.appendChild(input);
+            switchDiv.appendChild(slider);
+            label.appendChild(switchDiv);
+            label.appendChild(nameSpan);
+            container.appendChild(label);
+
+            return container;
+        }
+
+        // Handle toggle changes and update month states
+        const handleToggle = (state, name) => {
+            const monthKey = name.toLowerCase();
+            appData.monthStates[monthKey] = state;
+
+            console.log(`${name} is now ${state ? 'ON' : 'OFF'}`);
+            console.log('Updated month states:', appData.monthStates);
+
+            // Update the map with new filter
+            updateMapData();
+        };
+
+    </script>
+
+</body>
+
+</html>
