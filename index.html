@@ -49,9 +49,7 @@
             transition: background-color 0.2s ease;
         }
 
-        .toggle-label-small:hover {
-            background-color: #f8f8f8;
-        }
+
 
         .toggle-name-small {
             font-size: 13px;
@@ -132,7 +130,7 @@
             "apr": "#d62728",
             "may": "#9467bd",
             "jun": "#8c564b",
-            "june": "#8c564b",
+            "jun": "#8c564b",
             "jul": "#e377c2",
             "aug": "#7f7f7f",
             "sep": "#bcbd22",
@@ -164,6 +162,25 @@
         }
 
         map.on('style.load', () => {
+
+            map.addSource('satellite-source', {
+                type: 'raster',
+                url: 'mapbox://mapbox.satellite',
+                tileSize: 256
+            });
+
+            // Add satellite layer
+            map.addLayer({
+                id: 'satellite-layer',
+                type: 'raster',
+                source: 'satellite-source',
+                layout: {
+                    visibility: 'none'
+                },
+                paint: {
+                    'raster-opacity': 0.8
+                }
+            }); // Insert before waterway labels
 
             map.addSource('pins', {
                 "type": "geojson",
@@ -211,6 +228,8 @@
                     console.log(data);
                     data.map(function (d) {
 
+                        d.Month = d.Month.toLowerCase() === "june" ? "jun" : d.Month;
+
                         const [lat, lng] = d.Coordinates.split(',').map(Number);
                         if (isNaN(lat) || isNaN(lng)) {
                             console.warn(`Invalid coordinates for ${d.Name}: ${d.Coordinates}`);
@@ -239,7 +258,7 @@
 
                     appData.availableMonths = Array.from(new Set(appData.availableMonths));
                     appData.availableMonths.sort((a, b) => {
-                        const monthOrder = ["jan", "feb", "mar", "apr", "may", "jun", "june", "jul", "aug", "sep", "oct", "nov", "dec"];
+                        const monthOrder = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
                         return monthOrder.indexOf(a) - monthOrder.indexOf(b);
                     });
 
@@ -256,6 +275,20 @@
 
                     // Initial map update
                     updateMapData();
+
+
+                    //toggle for satellite layer
+                    filters.appendChild(document.createElement('hr'));
+                    filters.appendChild(createToggleDiv("SATELLITE", () => {
+                        const layer = map.getLayer('satellite-layer');
+                        const visibility = map.getLayoutProperty('satellite-layer', 'visibility');
+                        if (visibility === 'visible') {
+                            map.setLayoutProperty('satellite-layer', 'visibility', 'none');
+                        } else {
+                            map.setLayoutProperty('satellite-layer', 'visibility', 'visible');
+                        }
+
+                    }, false));
 
                 })
                 .catch(function (error) {
