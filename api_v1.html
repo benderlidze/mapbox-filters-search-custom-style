@@ -95,7 +95,7 @@
                 dropdown.style.display = 'none';
                 return;
             }
-
+            console.log('query', query);
             try {
                 const response = await fetch(`https://eircode.dataconversion.ie/api/eircodes/SearchAddress/?addressQuery=${encodeURIComponent(query)}&from=0&size=100&country=IRE`, {
                     "headers": {
@@ -140,6 +140,7 @@
             options.forEach(option => {
                 const item = document.createElement('div');
                 item.className = 'dropdown-item';
+                // item.textContent = option.displayName;
                 item.textContent = option.displayName;
                 item.onclick = () => selectAddress(option);
                 dropdown.appendChild(item);
